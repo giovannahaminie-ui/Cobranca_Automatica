@@ -8,6 +8,7 @@ SELECT
     c.codcli,
     c.nomcli AS cliente_nome,
     t.codcrt,
+    p.modblo,
     t.codpor,
     t.codsnf,
     t.codtpt,
@@ -22,6 +23,9 @@ LEFT JOIN sapiens.E440NFC f
     AND f.codfil = t.codfil
     AND f.numnfc = t.numnfc
     AND f.codsnf = t.codsnf
+LEFT JOIN sapiens.E039POR p
+    ON p.codemp = t.codemp
+    AND p.codpor = t.codpor
 WHERE c.codcli = '990139103'
     AND t.numtit = '1344-R1'
     AND t.vctori >= TRUNC(SYSDATE) - 60

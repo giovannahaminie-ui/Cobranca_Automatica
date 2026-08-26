@@ -7,6 +7,7 @@ load_dotenv()
 ORACLE_USER = os.getenv("ORACLE_USER")
 ORACLE_PASSWORD = os.getenv("ORACLE_PASSWORD")
 ORACLE_DSN = os.getenv("ORACLE_DSN")
+ORACLE_CLIENT_LIB_DIR = os.getenv("ORACLE_CLIENT_LIB_DIR")
 
 # Sapiens SOAP
 SENIOR_USER = os.getenv("SENIOR_USER")

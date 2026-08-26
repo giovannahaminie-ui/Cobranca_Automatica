@@ -32,6 +32,12 @@ def gerar_pdfs(id_titulo):
     """
     body = request.get_json(force=True)
     try:
+
+        modelo =body.get("modblo")
+        if not modelo:
+            sqlite_client.marcar_falha(id_titulo, "Portador sem modelo de bloqueto cadastrado")
+            return jsonify({"erro": "Portador sem modelo de bloqueto cadastrado, boleto automatico indisponível"}), 422
+
         pdf_boleto = senior_boleto_service.baixar_pdf_boleto(
             numero_titulo=id_titulo,
             codemp=body["codemp"],
@@ -40,6 +46,7 @@ def gerar_pdfs(id_titulo):
             codcrt=body["codcrt"],
             codpor=body["codpor"],
             codsnf=body["codsnf"],
+            modelo=modelo,
         )
 
         pdf_nf_base64 = None

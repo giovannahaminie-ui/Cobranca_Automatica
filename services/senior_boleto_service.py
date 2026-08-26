@@ -17,7 +17,7 @@ def _get_client():
 
 
 def baixar_pdf_boleto(numero_titulo: str, codemp: int, codfil: int, codtpt: str,
-                       codcrt: str, codpor: str, codsnf: str) -> bytes:
+                       codcrt: str, codpor: str, codsnf: str, modelo: str) -> bytes:
     client = _get_client()
 
     resultado = client.service.BloquetoFinanceiro(
@@ -25,7 +25,7 @@ def baixar_pdf_boleto(numero_titulo: str, codemp: int, codfil: int, codtpt: str,
         password=config.SENIOR_PASSWORD,
         encryption=config.SENIOR_ENCRYPTION,
         parameters={
-            "modelo": config.BOLETO_MODELO,
+            "modelo": modelo,
             "codTpt": codtpt,
             "numTit": numero_titulo,
             "codEmp": codemp,

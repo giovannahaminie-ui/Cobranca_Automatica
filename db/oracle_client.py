@@ -2,8 +2,7 @@ import oracledb
 import config
 
 # thick mode - necessario para o driver antigo do Sapiens/Oracle
-# ajustar lib_dir para o caminho do Oracle Instant Client na maquina
-oracledb.init_oracle_client()
+oracledb.init_oracle_client(lib_dir=config.ORACLE_CLIENT_LIB_DIR)
 
 
 def get_connection():
