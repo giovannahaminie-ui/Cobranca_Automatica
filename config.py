@@ -17,9 +17,6 @@ SENIOR_ENCRYPTION = int(os.getenv("SENIOR_ENCRYPTION", "0"))
 EDOCS_WSDL = "https://SEU_SERVIDOR/edocs/IDownloadServico.svc?wsdl"  # ajustar host real
 RELATORIO_WSDL = "http://192.168.10.235:8000/g5-senior-services/sapiens_Synccom_senior_g5_co_ger_relatorio?wsdl"
 
-# Boleto (porta BloquetoFinanceiro)
-BOLETO_MODELO = os.getenv("BOLETO_MODELO")
-
 # Chatwoot
 CHATWOOT_BASE_URL = os.getenv("CHATWOOT_BASE_URL")
 CHATWOOT_ACCOUNT_ID = os.getenv("CHATWOOT_ACCOUNT_ID")

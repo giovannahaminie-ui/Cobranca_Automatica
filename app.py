@@ -83,9 +83,7 @@ def enviar_cobranca(id_titulo):
             template_name=body["template_name"],
             idioma=body.get("idioma", "pt_BR"),
             parametros_body=body["parametros_body"],
-            pdf_nf_bytes=base64.b64decode(body["pdf_nf_base64"]) if body.get("pdf_nf_base64") else None,
             pdf_boleto_bytes=base64.b64decode(body["pdf_boleto_base64"]),
-            nome_arquivo_nf=f"NF-{body.get('numero_nf', id_titulo)}.pdf",
             nome_arquivo_boleto=f"Boleto-{id_titulo}.pdf",
         )
         chatwoot_service.marcar_label(conversation_id)

@@ -59,13 +59,11 @@ def criar_conversa(contact_id: int) -> int:
 
 
 def enviar_template_cobranca(conversation_id: int, template_name: str, idioma: str,
-                              parametros_body: dict, pdf_nf_bytes: bytes, pdf_boleto_bytes: bytes,
-                              nome_arquivo_nf: str, nome_arquivo_boleto: str):
+                              parametros_body: dict, pdf_boleto_bytes: bytes,
+                              nome_arquivo_boleto: str):
     files = [
         ("attachments[]", (nome_arquivo_boleto, pdf_boleto_bytes, "application/pdf")),
     ]
-    if pdf_nf_bytes:
-        files.append(("attachments[]", (nome_arquivo_nf, pdf_nf_bytes, "application/pdf")))
     data = {
         "message_type": "outgoing",
         "private": "false",

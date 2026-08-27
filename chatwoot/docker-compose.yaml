@@ -1,0 +1,48 @@
+services:
+  base: &base
+    image: chatwoot/chatwoot:latest
+    env_file: .env
+    volumes:
+      - storage_data:/app/storage
+    depends_on:
+      - postgres
+      - redis
+
+  rails:
+    <<: *base
+    ports:
+      - '3000:3000'
+    environment:
+      - INSTALLATION_ENV=docker
+    entrypoint: docker/entrypoints/rails.sh
+    command: ['bundle', 'exec', 'rails', 's', '-p', '3000', '-b', '0.0.0.0']
+    restart: always
+
+  sidekiq:
+    <<: *base
+    environment:
+      - INSTALLATION_ENV=docker
+    command: ['bundle', 'exec', 'sidekiq', '-C', 'config/sidekiq.yml']
+    restart: always
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=chatwoot
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=Tiete@123
+
+  redis:
+    image: redis:alpine
+    restart: always
+    command: ["redis-server", "--requirepass", "ChatwootRedis2026!"]
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  storage_data:
+  redis_data:
