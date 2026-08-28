@@ -12,7 +12,6 @@ def get_connection():
         dsn=config.ORACLE_DSN,
     )
 
-
 def buscar_titulos_vencidos(dias_janela=None, query_path="sql/query_titulos_vencidos.sql"):
     dias_janela = dias_janela or config.DIAS_JANELA
 

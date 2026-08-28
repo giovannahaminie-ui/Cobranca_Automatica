@@ -2,9 +2,20 @@ from flask import Flask, jsonify, request
 import config
 from db import oracle_client, sqlite_client
 from services import senior_nf_service, senior_boleto_service, chatwoot_service
+import os
+import base64
 
 app = Flask(__name__)
 sqlite_client.init_db()
+
+
+#BOLETOS
+BOLETOS_DIR = os.path.join(os.path.dirname(__file__), "boletos")
+
+def _salvar_copia_boleto(nome_arquivo, conteudo):
+    os.makedirs(BOLETOS_DIR, exist_ok=True)
+    with open(os.path.join(BOLETOS_DIR, nome_arquivo), "wb") as f:
+        f.write(conteudo)
 
 @app.get("/titulos-vencidos")
 def titulos_vencidos():
@@ -74,16 +85,23 @@ def enviar_cobranca(id_titulo):
     import base64
     body = request.get_json(force=True)
     try:
+        pdf_boleto_bytes = base64.b64decode(body["pdf_boleto_base64"])
+        nome_arquivo_boleto = f"Boleto-{id_titulo}.pdf"
+        _salvar_copia_boleto(nome_arquivo_boleto, pdf_boleto_bytes)
+
         contact_id = chatwoot_service.buscar_ou_criar_contato(
             telefone=body["telefone"], nome=body["cliente_nome"]
         )
         conversation_id = chatwoot_service.criar_conversa(contact_id)
+        url_boleto = chatwoot_service.hospedar_pdf(
+            conversation_id, pdf_boleto_bytes, nome_arquivo_boleto
+        )
         chatwoot_service.enviar_template_cobranca(
             conversation_id=conversation_id,
             template_name=body["template_name"],
             idioma=body.get("idioma", "pt_BR"),
             parametros_body=body["parametros_body"],
-            pdf_boleto_bytes=base64.b64decode(body["pdf_boleto_base64"]),
+            url_boleto=url_boleto,
             nome_arquivo_boleto=f"Boleto-{id_titulo}.pdf",
         )
         chatwoot_service.marcar_label(conversation_id)
