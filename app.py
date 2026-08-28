@@ -4,6 +4,7 @@ from db import oracle_client, sqlite_client
 from services import senior_nf_service, senior_boleto_service, chatwoot_service
 import os
 import base64
+import hmac, hashlib
 
 app = Flask(__name__)
 sqlite_client.init_db()
@@ -11,6 +12,18 @@ sqlite_client.init_db()
 
 #BOLETOS
 BOLETOS_DIR = os.path.join(os.path.dirname(__file__), "boletos")
+
+def _assinatura_valida(req):
+    secret = os.getenv("CHATWOOT_WEBHOOK_SECRET")
+    if not secret:
+        return True
+    ts = req.headers.get("X-ChatWoot-Timestamp", "")
+    assinatura = req.headers.get("X-ChatWoot-Signatue")
+    corpo = req.get_data(as_text=True)
+    esperado = "sha256=" + hmac.new(
+        secret.encode(), f"{ts}.{corpo}".encode(), hashlib.sha3256
+    ).hexdigest()
+    return hmac.compare_digest(esperado, assinatura)
 
 def _salvar_copia_boleto(nome_arquivo, conteudo):
     os.makedirs(BOLETOS_DIR, exist_ok=True)
@@ -118,6 +131,8 @@ def webhook_chatwoot():
     Recebe o webhook do Chatwoot (Settings > Integrations > Webhooks, evento
     message_created) para marcar no SQLite quando o cliente responde.
     """
+    if not _assinatura_valida(request):
+        return jsonify({"erro": "assinatura inválida"}), 401
     payload = request.get_json(force=True)
 
     if payload.get("message_type") == "incoming":
