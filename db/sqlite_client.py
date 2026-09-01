@@ -3,7 +3,8 @@ import config
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS cobrancas (
-    id_titulo TEXT PRIMARY KEY,
+    id_titulo TEXT,
+    etapa INTEGER NOT NULL DEFAULT 1,   -- 1 = 2 dias apos vencimento | 2 = ultimo dia (vctpro)
     codemp INTEGER,
     codfil INTEGER,
     codcli TEXT,
@@ -17,7 +18,8 @@ CREATE TABLE IF NOT EXISTS cobrancas (
     data_envio TEXT,
     respondeu INTEGER DEFAULT 0,
     erro TEXT,
-    criado_em TEXT DEFAULT CURRENT_TIMESTAMP
+    criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_titulo, etapa)
 );
 """
 
@@ -33,11 +35,15 @@ def init_db():
         conn.executescript(SCHEMA)
 
 
-def ja_enviado(id_titulo):
+def ja_enviado(id_titulo, etapa):
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT status FROM cobrancas WHERE id_titulo = ? AND status IN ('enviado', 'respondido', 'negociacao')",
-            (id_titulo,),
+            """
+            SELECT status FROM cobrancas
+            WHERE id_titulo = ? AND etapa = ?
+              AND status IN ('enviado', 'respondido', 'negociacao')
+            """,
+            (id_titulo, etapa),
         ).fetchone()
     return row is not None
 
@@ -46,32 +52,42 @@ def registrar_titulo(titulo):
     with get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO cobrancas (id_titulo, codemp, codfil, codcli, numero_nf, cliente_nome, telefone, valor, data_vencimento)
-            VALUES (:id_titulo, :codemp, :codfil, :codcli, :numero_nf, :cliente_nome, :telefone, :valor, :data_vencimento)
-            ON CONFLICT(id_titulo) DO NOTHING
+            INSERT INTO cobrancas (id_titulo, etapa, codemp, codfil, codcli, numero_nf, cliente_nome, telefone, valor, data_vencimento)
+            VALUES (:id_titulo, :etapa, :codemp, :codfil, :codcli, :numero_nf, :cliente_nome, :telefone, :valor, :data_vencimento)
+            ON CONFLICT(id_titulo, etapa) DO NOTHING
             """,
             titulo,
         )
 
 
-def marcar_enviado(id_titulo, conversation_id):
+def marcar_enviado(id_titulo, etapa, conversation_id):
     with get_connection() as conn:
         conn.execute(
             """
             UPDATE cobrancas
             SET status = 'enviado', conversation_id = ?, data_envio = CURRENT_TIMESTAMP, erro = NULL
-            WHERE id_titulo = ?
+            WHERE id_titulo = ? AND etapa = ?
             """,
-            (conversation_id, id_titulo),
+            (conversation_id, id_titulo, etapa),
         )
 
 
-def marcar_falha(id_titulo, erro):
+def marcar_falha(id_titulo, erro, etapa=None):
     with get_connection() as conn:
-        conn.execute(
-            "UPDATE cobrancas SET status = 'falhou', erro = ? WHERE id_titulo = ?",
-            (str(erro), id_titulo),
-        )
+        if etapa is None:
+            conn.execute(
+                """
+                UPDATE cobrancas SET status = 'falhou', erro = ?
+                WHERE id_titulo = ?
+                  AND status NOT IN ('enviado', 'respondido', 'negociacao')
+                """,
+                (str(erro), id_titulo),
+            )
+        else:
+            conn.execute(
+                "UPDATE cobrancas SET status = 'falhou', erro = ? WHERE id_titulo = ? AND etapa = ?",
+                (str(erro), id_titulo, etapa),
+            )
 
 
 def marcar_respondido(conversation_id):

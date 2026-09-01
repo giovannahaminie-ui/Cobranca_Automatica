@@ -2,9 +2,12 @@ from flask import Flask, jsonify, request
 import config
 from db import oracle_client, sqlite_client
 from services import senior_nf_service, senior_boleto_service, chatwoot_service
+from datetime import datetime
+from email.utils import parsedate_to_datetime
 import os
 import base64
 import hmac, hashlib
+
 
 app = Flask(__name__)
 sqlite_client.init_db()
@@ -12,6 +15,22 @@ sqlite_client.init_db()
 
 #BOLETOS
 BOLETOS_DIR = os.path.join(os.path.dirname(__file__), "boletos")
+
+def _fmt_valor(v):
+    try:
+        return f"{float(v):.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except (ValueError, TypeError):
+        return v
+
+def _fmt_data(d):
+    if not d:
+        return ""
+    for parser in (parsedate_to_datetime, datetime.fromisoformat):
+        try:
+            return parser(d).strftime("%d/%m/%Y")
+        except (ValueError, TypeError):
+            continue
+    return str(d)
 
 def _assinatura_valida(req):
     secret = os.getenv("CHATWOOT_WEBHOOK_SECRET")
@@ -38,7 +57,8 @@ def titulos_vencidos():
 
     pendentes = []
     for t in titulos:
-        if not sqlite_client.ja_enviado(t["id_titulo"]):
+        etapa = int(t.get("etapa", 1))
+        if not sqlite_client.ja_enviado(t["id_titulo"], etapa):
             sqlite_client.registrar_titulo(t)
             pendentes.append(t)
 
@@ -55,11 +75,12 @@ def gerar_pdfs(id_titulo):
     depende da versao do eDocs). Ajustar senior_nf_service conforme o retorno real.
     """
     body = request.get_json(force=True)
+    etapa = body.get("etapa")
     try:
 
         modelo =body.get("modblo")
         if not modelo:
-            sqlite_client.marcar_falha(id_titulo, "Portador sem modelo de bloqueto cadastrado")
+            sqlite_client.marcar_falha(id_titulo, "Portador sem modelo de bloqueto cadastrado", etapa)
             return jsonify({"erro": "Portador sem modelo de bloqueto cadastrado, boleto automatico indisponível"}), 422
 
         pdf_boleto = senior_boleto_service.baixar_pdf_boleto(
@@ -80,7 +101,7 @@ def gerar_pdfs(id_titulo):
             import base64
             pdf_nf_base64 = base64.b64encode(pdf_nf).decode()
     except Exception as e:
-        sqlite_client.marcar_falha(id_titulo, e)
+        sqlite_client.marcar_falha(id_titulo, e, etapa)
         return jsonify({"erro": str(e)}), 502
     import base64
     return jsonify({
@@ -91,16 +112,33 @@ def gerar_pdfs(id_titulo):
 
 @app.post("/enviar-cobranca/<id_titulo>")
 def enviar_cobranca(id_titulo):
-    """
-    Recebe os dados do cliente + PDFs (ja gerados) e envia a cobranca via API do
-    Chatwoot, mantendo o disparo automatico e a resposta do cliente na mesma conversa.
-    """
+    """Envia a cobranca via API do Chatwoot. Escolhe o template pela etapa."""
     import base64
     body = request.get_json(force=True)
+    etapa = int(body.get("etapa", 1))
     try:
         pdf_boleto_bytes = base64.b64decode(body["pdf_boleto_base64"])
         nome_arquivo_boleto = f"Boleto-{id_titulo}.pdf"
         _salvar_copia_boleto(nome_arquivo_boleto, pdf_boleto_bytes)
+
+        vencimento = _fmt_data(body.get("vencimento"))
+        valor_nf = _fmt_valor(body.get("valor"))
+
+        if etapa == 2:
+            template_name = config.TEMPLATE_ETAPA_2
+            parametros_body = {
+                "nome_colaborador": body.get("nome_colaborador") or config.NOME_COLABORADOR,
+                "numero_titulo": id_titulo,
+                "vencimento": vencimento,
+                "valor_nf": valor_nf,
+            }
+        else:
+            template_name = config.TEMPLATE_ETAPA_1
+            parametros_body = {
+                "nome_cliente": body["cliente_nome"],
+                "valor_nf": valor_nf,
+                "vencimento": vencimento,
+            }
 
         contact_id = chatwoot_service.buscar_ou_criar_contato(
             telefone=body["telefone"], nome=body["cliente_nome"]
@@ -111,17 +149,17 @@ def enviar_cobranca(id_titulo):
         )
         chatwoot_service.enviar_template_cobranca(
             conversation_id=conversation_id,
-            template_name=body["template_name"],
+            template_name=template_name,
             idioma=body.get("idioma", "pt_BR"),
-            parametros_body=body["parametros_body"],
+            parametros_body=parametros_body,
             url_boleto=url_boleto,
-            nome_arquivo_boleto=f"Boleto-{id_titulo}.pdf",
+            nome_arquivo_boleto=nome_arquivo_boleto,
         )
         chatwoot_service.marcar_label(conversation_id)
-        sqlite_client.marcar_enviado(id_titulo, conversation_id)
-        return jsonify({"status": "enviado", "conversation_id": conversation_id})
+        sqlite_client.marcar_enviado(id_titulo, etapa, conversation_id)
+        return jsonify({"status": "enviado", "etapa": etapa, "conversation_id": conversation_id})
     except Exception as e:
-        sqlite_client.marcar_falha(id_titulo, e)
+        sqlite_client.marcar_falha(id_titulo, e, etapa)
         return jsonify({"erro": str(e)}), 502
 
 
