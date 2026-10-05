@@ -41,7 +41,7 @@ def ja_enviado(id_titulo, etapa):
             """
             SELECT status FROM cobrancas
             WHERE id_titulo = ? AND etapa = ?
-              AND status IN ('enviado', 'respondido', 'negociacao')
+              AND status IN ('enviado', 'respondido', 'negociacao', 'nao_entregue')
             """,
             (id_titulo, etapa),
         ).fetchone()
@@ -79,7 +79,7 @@ def marcar_falha(id_titulo, erro, etapa=None):
                 """
                 UPDATE cobrancas SET status = 'falhou', erro = ?
                 WHERE id_titulo = ?
-                  AND status NOT IN ('enviado', 'respondido', 'negociacao')
+                  AND status NOT IN ('enviado', 'respondido', 'negociacao', 'nao_entregue')
                 """,
                 (str(erro), id_titulo),
             )
@@ -93,6 +93,23 @@ def marcar_falha(id_titulo, erro, etapa=None):
 def marcar_respondido(conversation_id):
     with get_connection() as conn:
         conn.execute(
-            "UPDATE cobrancas SET respondeu = 1, status = 'respondido' WHERE conversation_id = ?",
+            """
+            UPDATE cobrancas SET respondeu = 1, status = 'respondido'
+            WHERE conversation_id = ? AND status = 'enviado'
+            """,
             (str(conversation_id),),
+        )
+
+def marcar_nao_entregue(conversation_id, erro):
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE cobrancas SET status = 'nao_entregue', erro = ?
+            WHERE rowid = (
+                SELECT rowid FROM cobrancas
+                WHERE conversation_id = ? AND status = 'enviado'
+                ORDER BY data_envio DESC LIMIT 1
+            )
+            """,
+            (str(erro), str(conversation_id)),
         )

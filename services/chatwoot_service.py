@@ -28,18 +28,37 @@ def _normalizar_telefone(telefone: str) -> str:
         return "+" + digitos
     return "+55" + digitos
 
-def buscar_ou_criar_contato(telefone: str, nome: str) -> int:
-    telefone = _normalizar_telefone(telefone)
+def _chave_telefone(tel: str) -> str:
+    """DDD + ultimos 8 digitos (ignora o +55 e o 9o digito)."""
+    d = re.sub(r"\D", "", tel or "")
+    if d.startswith("55") and len(d) >= 12:
+        d = d[2:]
+    return d[:2] + d[-8:]
+
+
+def _buscar_contato_por_telefone(telefone: str):
     resp = requests.get(
         f"{BASE}/contacts/search",
         headers=HEADERS,
-        params={"q": telefone},
+        params={"q": telefone[-8:]},
         timeout=30,
     )
     resp.raise_for_status()
-    resultados = resp.json().get("payload", [])
-    if resultados:
-        return resultados[0]["id"]
+    chave = _chave_telefone(telefone)
+    for contato in resp.json().get("payload", []):
+        if _chave_telefone(contato.get("phone_number")) == chave:
+            return contato["id"]
+    return None
+
+
+def buscar_ou_criar_contato(telefone: str, nome: str) -> int:
+    telefone = _normalizar_telefone(telefone)
+    if len(telefone) not in (13, 14):   # +55 + DDD + 8 ou 9 digitos
+        raise ValueError(f"Telefone invalido para cobranca: {telefone!r}")
+
+    contato_id = _buscar_contato_por_telefone(telefone)
+    if contato_id:
+        return contato_id
 
     resp = requests.post(
         f"{BASE}/contacts",
@@ -47,6 +66,11 @@ def buscar_ou_criar_contato(telefone: str, nome: str) -> int:
         json={"name": nome, "phone_number": telefone, "inbox_id": config.CHATWOOT_INBOX_ID},
         timeout=30,
     )
+    if resp.status_code >= 400:
+        # ja existe (formato diferente) ou foi criado agora: tenta achar de novo
+        contato_id = _buscar_contato_por_telefone(telefone)
+        if contato_id:
+            return contato_id
     resp.raise_for_status()
     return resp.json()["payload"]["contact"]["id"]
 
@@ -64,6 +88,32 @@ def criar_conversa(contact_id: int) -> int:
     )
     resp.raise_for_status()
     return resp.json()["id"]
+
+def obter_ou_criar_conversa(contact_id: int) -> int:
+    """Reaproveita a conversa mais recente do contato nesta caixa de entrada."""
+    resp = requests.get(
+        f"{BASE}/contacts/{contact_id}/conversations",
+        headers=HEADERS,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    da_caixa = [
+        c for c in resp.json().get("payload", [])
+        if str(c.get("inbox_id")) == str(config.CHATWOOT_INBOX_ID)
+    ]
+    if not da_caixa:
+        return criar_conversa(contact_id)
+
+    conversa = max(da_caixa, key=lambda c: c["id"])
+    if conversa.get("status") == "resolved":
+        r = requests.post(
+            f"{BASE}/conversations/{conversa['id']}/toggle_status",
+            headers=HEADERS,
+            json={"status": "open"},
+            timeout=30,
+        )
+        r.raise_for_status()
+    return conversa["id"]
 
 def hospedar_pdf(conversation_id: int, pdf_bytes: bytes, nome_arquivo: str) -> str:
     """Sobe o PDF como NOTA PRIVADA na conversa, nao vai para o cliente e sim o chatwoot 
@@ -86,18 +136,20 @@ def hospedar_pdf(conversation_id: int, pdf_bytes: bytes, nome_arquivo: str) -> s
     return anexos[0]["data_url"].replace("/blobs/redirect/", "/blobs/proxy/")
 
 def enviar_template_cobranca(conversation_id: int, template_name: str, idioma: str,
-                              parametros_body: dict, url_boleto: str, nome_arquivo_boleto: str):
-
+                              parametros_body: dict, url_boleto: str, nome_arquivo_boleto: str,
+                              com_documento: bool = True, conteudo: str = ""):
     data = {
+        "content": conteudo,
         "message_type": "outgoing",
         "private": "false",
         "template_params[name]": template_name,
         "template_params[category]": "UTILITY",
         "template_params[language]": idioma,
-        "template_params[processed_params][header][media_url]": url_boleto,
-        "template_params[processed_params][header][media_type]": "document",
-        "template_params[processed_params][header][media_name]": nome_arquivo_boleto,
     }
+    if com_documento:
+        data["template_params[processed_params][header][media_url]"] = url_boleto
+        data["template_params[processed_params][header][media_type]"] = "document"
+        data["template_params[processed_params][header][media_name]"] = nome_arquivo_boleto
     for chave, valor in parametros_body.items():
         data[f"template_params[processed_params][body][{chave}]"] = valor
 
@@ -109,7 +161,6 @@ def enviar_template_cobranca(conversation_id: int, template_name: str, idioma: s
     )
     resp.raise_for_status()
     return resp.json()
-
 
 def marcar_label(conversation_id: int, label: str = "cobranca-enviada"):
     resp = requests.post(

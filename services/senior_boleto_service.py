@@ -17,27 +17,32 @@ def _get_client():
 
 
 def baixar_pdf_boleto(numero_titulo: str, codemp: int, codfil: int, codtpt: str,
-                       codcrt: str, codpor: str, codsnf: str, modelo: str) -> bytes:
+                       codcrt=None, codpor=None, codsnf=None, modelo=None) -> bytes:
     client = _get_client()
 
-    resultado = client.service.BloquetoFinanceiro(
+    entrada = f'<ECodEmp={codemp}><ECodFil={codfil}><ECodTpt={codtpt}><ENumTit="{numero_titulo}">'
+
+    resultado = client.service.Executar(
         user=config.SENIOR_USER,
         password=config.SENIOR_PASSWORD,
         encryption=config.SENIOR_ENCRYPTION,
         parameters={
-            "modelo": modelo,
-            "codTpt": codtpt,
-            "numTit": numero_titulo,
-            "codEmp": codemp,
-            "codFil": codfil,
-            "codPor": codpor,
-            "codCrt": codcrt,
-            "codSnf": codsnf,
-            "formato": "PDF",
+            "prRelatorio": config.RELATORIO_BOLETO,
+            "prEntrada": entrada,
+            "prExecFmt": "tefFile",
+            "prSaveFormat": "tsfPDF",
+            "prEntranceIsXML": "F",
         },
     )
 
-    if resultado.retorno != "OK":
-        raise RuntimeError(f"Falha ao gerar boleto do titulo {numero_titulo}: {resultado.retorno}")
+    erro = (getattr(resultado, "erroExecucao", None) or "").strip()
+    if erro:
+        raise RuntimeError(f"Falha ao gerar boleto do titulo {numero_titulo}: {erro}")
 
-    return base64.b64decode(resultado.arquivo)
+    pdf = base64.b64decode(resultado.prRetorno or "")
+    if not pdf.startswith(b"%PDF"):
+        raise RuntimeError(
+            f"O relatorio do titulo {numero_titulo} nao retornou um PDF valido "
+            "(relatorio cancelado ou vazio)"
+        )
+    return pdf

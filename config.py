@@ -16,6 +16,7 @@ SENIOR_ENCRYPTION = int(os.getenv("SENIOR_ENCRYPTION", "0"))
 
 EDOCS_WSDL = "https://SEU_SERVIDOR/edocs/IDownloadServico.svc?wsdl"  # ajustar host real
 RELATORIO_WSDL = "http://192.168.10.235:8000/g5-senior-services/sapiens_Synccom_senior_g5_co_ger_relatorio?wsdl"
+RELATORIO_BOLETO = os.getenv("RELATORIO_BOLETO", "FRCR400.GER")
 
 # Chatwoot
 CHATWOOT_BASE_URL = os.getenv("CHATWOOT_BASE_URL")
@@ -27,4 +28,11 @@ CHATWOOT_INBOX_ID = os.getenv("CHATWOOT_INBOX_ID")
 SQLITE_PATH = os.getenv("SQLITE_PATH", "./cobranca.db")
 
 # Janela de vencimento (dias) usada na query de titulos vencidos
-DIAS_JANELA = int(os.getenv("DIAS_JANELA", "30"))
+DIAS_JANELA = int(os.getenv("DIAS_JANELA", "7"))
+
+# Cobranca - templates por etapa
+NOME_COLABORADOR = os.getenv("NOME_COLABORADOR", "")
+TEMPLATE_ETAPA_1 = os.getenv("TEMPLATE_ETAPA_1", "cobranca_tiete")
+TEMPLATE_ETAPA_2 = os.getenv("TEMPLATE_ETAPA_2", "segunda_mensagem_cobranca")
+
+

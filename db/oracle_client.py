@@ -20,8 +20,10 @@ def buscar_titulos_vencidos(dias_janela=None, query_path="sql/query_titulos_venc
 
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute(sql)
+        binds = {"dias_janela": dias_janela} if ":dias_janela" in sql.lower() else {}
+        cursor.execute(sql, binds)
         colunas = [c[0].lower() for c in cursor.description]
         rows = cursor.fetchall()
 
     return [dict(zip(colunas, row)) for row in rows]
+
