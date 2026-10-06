@@ -30,11 +30,39 @@ def buscar_titulos_vencidos(dias_janela=None, query_path="sql/query_titulos_venc
 
 def registrar_observacao_cobranca(codemp, codfil, numtit, codtpt, etapa):
     agora = datetime.now()
-    texto = (f"Cobranca {etapa} enviada automaticamente via WhatsApp (bot) "
-             f"em {agora:%d/%m/%Y} as {agora:%H:%M}")
+    quando = f"em {agora:%d/%m/%Y} as {agora:%H:%M}"
+    if etapa == 1:
+        texto = f"Cobranca 1 enviada automaticamente por WhatsApp (bot) {quando}"
+    else:
+        texto = f"{etapa}a cobranca (aviso antes do cartorio) enviada por WhatsApp {quando}"
+
+    chave = {"codemp": codemp, "codfil": codfil, "numtit": numtit,
+             "codtpt": codtpt, "codusu": config.COD_USU_BOT}
 
     with get_connection() as conn:
         cur = conn.cursor()
+
+        # Etapa 2 em diante: acrescenta " / texto" na ultima observacao do bot
+        if etapa != 1:
+            cur.execute(
+                """
+                UPDATE sapiens.USU_T301OBS
+                   SET usu_obstcr = usu_obstcr || ' / ' || :texto
+                 WHERE usu_codemp = :codemp AND usu_codfil = :codfil
+                   AND usu_numtit = :numtit AND usu_codtpt = :codtpt
+                   AND usu_codusu = :codusu
+                   AND usu_seqobs = (SELECT MAX(usu_seqobs) FROM sapiens.USU_T301OBS
+                                      WHERE usu_codemp = :codemp AND usu_codfil = :codfil
+                                        AND usu_numtit = :numtit AND usu_codtpt = :codtpt
+                                        AND usu_codusu = :codusu)
+                """,
+                {**chave, "texto": texto},
+            )
+            if cur.rowcount:
+                conn.commit()
+                return
+
+        # Etapa 1 (ou etapa 2 sem observacao anterior do bot): linha nova
         cur.execute(
             """
             INSERT INTO sapiens.USU_T301OBS
@@ -46,7 +74,6 @@ def registrar_observacao_cobranca(codemp, codfil, numtit, codtpt, etapa):
             WHERE usu_codemp = :codemp AND usu_codfil = :codfil
               AND usu_numtit = :numtit AND usu_codtpt = :codtpt
             """,
-            {"codemp": codemp, "codfil": codfil, "numtit": numtit, "codtpt": codtpt,
-             "datobs": agora, "obs": texto, "codusu": config.COD_USU_BOT},
+            {**chave, "datobs": agora, "obs": texto},
         )
         conn.commit()
