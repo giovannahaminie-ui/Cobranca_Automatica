@@ -171,7 +171,7 @@ def enviar_cobranca(id_titulo):
             url_boleto=url_boleto,
             nome_arquivo_boleto=nome_arquivo_boleto,
             com_documento=(etapa != 2),
-            conteudo=f"Cobrança título {id_titulo} - {body['cliente_nome']} (etapa {etapa})",
+            conteudo=f"Cobrança título {id_titulo} - {body['cliente_nome']} - Emp {body.get('codemp')}/Fil {body.get('codfil')} (cobrança {etapa})",
         )
         sqlite_client.marcar_enviado(id_titulo, etapa, conversation_id)
         try:
