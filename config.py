@@ -35,4 +35,7 @@ NOME_COLABORADOR = os.getenv("NOME_COLABORADOR", "")
 TEMPLATE_ETAPA_1 = os.getenv("TEMPLATE_ETAPA_1", "cobranca_tiete")
 TEMPLATE_ETAPA_2 = os.getenv("TEMPLATE_ETAPA_2", "segunda_mensagem_cobranca")
 
+# Usuario do Sapiens usado pelo bot nas observacoes de cobranca (USU_T301OBS.USU_CODUSU)
+COD_USU_BOT = int(os.getenv("COD_USU_BOT", "675"))
+
 

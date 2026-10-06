@@ -175,6 +175,16 @@ def enviar_cobranca(id_titulo):
         )
         sqlite_client.marcar_enviado(id_titulo, etapa, conversation_id)
         try:
+            oracle_client.registrar_observacao_cobranca(
+                codemp=body["codemp"],
+                codfil=body["codfil"],
+                numtit=id_titulo,
+                codtpt=body["codtpt"],
+                etapa=etapa,
+            )
+        except Exception as e:
+            _log_falha(id_titulo, etapa, f"enviado, mas a observacao no Sapiens nao foi gravada: {e}")
+        try:
             chatwoot_service.marcar_label(conversation_id)
         except Exception as e:
             _log_falha(id_titulo, etapa, f"enviado, mas a etiqueta nao foi aplicada: {e}")
