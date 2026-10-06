@@ -5,6 +5,10 @@ SELECT t.codemp,
        c.apecli,
        c.codgre,
        c.foncli AS telefone,
+       c.foncl2,
+       c.foncl3,
+       c.foncl4,
+       c.foncl5,
        t.numtit AS id_titulo,
        t.sittit,
        p.codtpt,
@@ -42,11 +46,10 @@ LEFT JOIN sapiens.E002TPT p ON p.codtpt = t.codtpt
 LEFT JOIN sapiens.E039POR r ON r.codemp = t.codemp
 AND r.codpor = t.codpor
 WHERE (t.datemi > TO_DATE('01/01/2025','dd/mm/yyyy') OR t.vctori > TO_DATE('01/01/2025','dd/mm/yyyy'))
-AND t.codtpt NOT IN('GAR','GRT','SCI','RAT')
-AND t.sittit NOT IN ('CA')
-AND t.vlrabe > 0
+AND t.codtpt NOT IN ('GAR','GRT','SCI','RAT')
 AND t.sittit = 'AB'
-AND t.vctori < TRUNC(SYSDATE)
-AND t.vctori >= TRUNC(SYSDATE) - 7
+AND t.vlrabe > 0
+AND t.vctpro < TRUNC(SYSDATE)
+AND t.vctpro >= TRUNC(SYSDATE) - 7
 AND t.codpor LIKE '%ITA%'
 AND UPPER(f.desfpg) LIKE '%BOLETO%'

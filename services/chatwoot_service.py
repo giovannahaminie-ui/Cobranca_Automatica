@@ -28,6 +28,24 @@ def _normalizar_telefone(telefone: str) -> str:
         return "+" + digitos
     return "+55" + digitos
 
+def telefone_valido_whatsapp(telefone) -> bool:
+    """Mesma regra de buscar_ou_criar_contato: tamanho valido e nao e fixo."""
+    if not telefone:
+        return False
+    tel = _normalizar_telefone(telefone)
+    if len(tel) not in (13, 14):
+        return False
+    local = tel[5:]
+    return not (len(local) == 8 and local[0] in "2345")
+
+
+def escolher_telefone(*telefones):
+    """Primeiro telefone (foncli, foncl2...) que pode ter WhatsApp; None se nenhum."""
+    for t in telefones:
+        if telefone_valido_whatsapp(t):
+            return t
+    return None
+
 def _chave_telefone(tel: str) -> str:
     """DDD + ultimos 8 digitos (ignora o +55 e o 9o digito)."""
     d = re.sub(r"\D", "", tel or "")
@@ -55,6 +73,10 @@ def buscar_ou_criar_contato(telefone: str, nome: str) -> int:
     telefone = _normalizar_telefone(telefone)
     if len(telefone) not in (13, 14):   # +55 + DDD + 8 ou 9 digitos
         raise ValueError(f"Telefone invalido para cobranca: {telefone!r}")
+
+    local = telefone[5:]   # depois do +55 e do DDD
+    if len(local) == 8 and local[0] in "2345":
+        raise ValueError(f"Telefone fixo, sem WhatsApp: {telefone!r}")
 
     contato_id = _buscar_contato_por_telefone(telefone)
     if contato_id:
@@ -167,6 +189,23 @@ def marcar_label(conversation_id: int, label: str = "cobranca-enviada"):
         f"{BASE}/conversations/{conversation_id}/labels",
         headers=HEADERS,
         json={"labels": [label]},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+def agente_da_cobranca(codemp, codfil):
+    """RTL (emp 2, fil 1 e 2) -> Pollyane; todo o resto -> Sabrina."""
+    if int(codemp) == 2 and int(codfil) in (1, 2):
+        return config.CHATWOOT_AGENTE_RTL
+    return config.CHATWOOT_AGENTE_PADRAO
+
+
+def atribuir_conversa(conversation_id: int, agente_id: int):
+    resp = requests.post(
+        f"{BASE}/conversations/{conversation_id}/assignments",
+        headers=HEADERS,
+        json={"assignee_id": agente_id},
         timeout=30,
     )
     resp.raise_for_status()

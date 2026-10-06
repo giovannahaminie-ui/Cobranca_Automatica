@@ -38,4 +38,6 @@ TEMPLATE_ETAPA_2 = os.getenv("TEMPLATE_ETAPA_2", "segunda_mensagem_cobranca")
 # Usuario do Sapiens usado pelo bot nas observacoes de cobranca (USU_T301OBS.USU_CODUSU)
 COD_USU_BOT = int(os.getenv("COD_USU_BOT", "675"))
 
-
+#ID's de agentes
+CHATWOOT_AGENTE_PADRAO = int(os.getenv("CHATWOOT_AGENTE_PADRAO", "0")) or None  # Sabrina
+CHATWOOT_AGENTE_RTL = int(os.getenv("CHATWOOT_AGENTE_RTL", "0")) or None        # Pollyane

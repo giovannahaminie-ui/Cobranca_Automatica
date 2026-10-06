@@ -76,7 +76,10 @@ def titulos_vencidos():
         if chave in vistos:
             continue
         vistos.add(chave)
-
+        t["telefone"] = chatwoot_service.escolher_telefone(
+        t.get("telefone"), t.get("foncl2"), t.get("foncl3"),
+        t.get("foncl4"), t.get("foncl5"),
+        ) or t.get("telefone")
         t["etapa"] = etapa
         if not sqlite_client.ja_enviado(t["id_titulo"], etapa):
             sqlite_client.registrar_titulo(t)
@@ -160,6 +163,12 @@ def enviar_cobranca(id_titulo):
             telefone=body["telefone"], nome=body["cliente_nome"]
         )
         conversation_id = chatwoot_service.obter_ou_criar_conversa(contact_id)
+        try:
+            agente_id = chatwoot_service.agente_da_cobranca(body["codemp"], body["codfil"])
+            if agente_id:
+                chatwoot_service.atribuir_conversa(conversation_id, agente_id)
+        except Exception as e:
+            _log_falha(id_titulo, etapa, f"conversa criada, mas a atribuicao falhou: {e}")
         url_boleto = chatwoot_service.hospedar_pdf(
             conversation_id, pdf_boleto_bytes, nome_arquivo_boleto
         )
