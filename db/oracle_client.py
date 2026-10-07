@@ -31,10 +31,11 @@ def buscar_titulos_vencidos(dias_janela=None, query_path="sql/query_titulos_venc
 def registrar_observacao_cobranca(codemp, codfil, numtit, codtpt, etapa):
     agora = datetime.now()
     quando = f"em {agora:%d/%m/%Y} as {agora:%H:%M}"
+    telefone = "43 3377-0081"
     if etapa == 1:
-        texto = f"Cobranca 1 enviada automaticamente por WhatsApp (bot) {quando}"
+        texto = f"1° cobrança enviada por WhatsApp|{telefone}|(bot) {quando}"
     else:
-        texto = f"{etapa}a cobranca (aviso antes do cartorio) enviada por WhatsApp {quando}"
+        texto = f"{etapa}a cobranca (aviso antes do cartorio) enviada por WhatsApp|{telefone}|(bot) {quando}"
 
     chave = {"codemp": codemp, "codfil": codfil, "numtit": numtit,
              "codtpt": codtpt, "codusu": config.COD_USU_BOT}
