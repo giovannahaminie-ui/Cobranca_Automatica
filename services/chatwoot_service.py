@@ -28,23 +28,24 @@ def _normalizar_telefone(telefone: str) -> str:
         return "+" + digitos
     return "+55" + digitos
 
+def _e_fixo(tel: str) -> bool:
+    local = _normalizar_telefone(tel)[5:]
+    return len(local) == 8 and local[0] in "2345"
+
 def telefone_valido_whatsapp(telefone) -> bool:
-    """Mesma regra de buscar_ou_criar_contato: tamanho valido e nao e fixo."""
+    """Tamanho valido (celular ou fixo). Fixo so funciona se tiver WhatsApp Business."""
     if not telefone:
         return False
-    tel = _normalizar_telefone(telefone)
-    if len(tel) not in (13, 14):
-        return False
-    local = tel[5:]
-    return not (len(local) == 8 and local[0] in "2345")
+    return len(_normalizar_telefone(telefone)) in (13, 14)
 
 
 def escolher_telefone(*telefones):
-    """Primeiro telefone (foncli, foncl2...) que pode ter WhatsApp; None se nenhum."""
-    for t in telefones:
-        if telefone_valido_whatsapp(t):
+    """Prefere celular (foncli, foncl2...); se nao houver, aceita fixo; None se nenhum serve."""
+    validos = [t for t in telefones if telefone_valido_whatsapp(t)]
+    for t in validos:
+        if not _e_fixo(t):
             return t
-    return None
+    return validos[0] if validos else None
 
 def _chave_telefone(tel: str) -> str:
     """DDD + ultimos 8 digitos (ignora o +55 e o 9o digito)."""
@@ -73,10 +74,6 @@ def buscar_ou_criar_contato(telefone: str, nome: str) -> int:
     telefone = _normalizar_telefone(telefone)
     if len(telefone) not in (13, 14):   # +55 + DDD + 8 ou 9 digitos
         raise ValueError(f"Telefone invalido para cobranca: {telefone!r}")
-
-    local = telefone[5:]   # depois do +55 e do DDD
-    if len(local) == 8 and local[0] in "2345":
-        raise ValueError(f"Telefone fixo, sem WhatsApp: {telefone!r}")
 
     contato_id = _buscar_contato_por_telefone(telefone)
     if contato_id:
@@ -210,3 +207,4 @@ def atribuir_conversa(conversation_id: int, agente_id: int):
     )
     resp.raise_for_status()
     return resp.json()
+
