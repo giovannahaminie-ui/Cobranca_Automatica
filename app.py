@@ -87,7 +87,7 @@ def titulos_vencidos():
 
     return jsonify(pendentes)
 
-@app.post("/gerar-pdfs/<id_titulo>")
+@app.post("/gerar-pdfs/<path:id_titulo>")
 def gerar_pdfs(id_titulo):
     """
     Gera os PDFs da NF e do boleto para um titulo.
@@ -124,7 +124,7 @@ def gerar_pdfs(id_titulo):
     })
 
 
-@app.post("/enviar-cobranca/<id_titulo>")
+@app.post("/enviar-cobranca/<path:id_titulo>")
 def enviar_cobranca(id_titulo):
     """Envia a cobranca via API do Chatwoot. Escolhe o template pela etapa."""
     import base64
@@ -190,6 +190,7 @@ def enviar_cobranca(id_titulo):
                 numtit=id_titulo,
                 codtpt=body["codtpt"],
                 etapa=etapa,
+                telefone_enviado=chatwoot_service._normalizar_telefone(body["telefone"]),
             )
         except Exception as e:
             _log_falha(id_titulo, etapa, f"enviado, mas a observacao no Sapiens nao foi gravada: {e}")
