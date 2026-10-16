@@ -49,3 +49,8 @@ n8n está configurado disparando o fluxo de mensagens baseados nos dias de cobra
 - número da Meta
 - Foi criado um túnel para o serviço rodar no grok.
 - Docker para hospedar o n8n e o chatwoot.
+
+# Arquivos e funcionamento:
+
+- Atualmente docker + grok + chatwoot dependem da máquina local. (servidor não estava apto)
+- serviço (py) roda no servidor 231 chamado cobrança automática, é um serviço NSSM.
